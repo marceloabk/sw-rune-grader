@@ -1,4 +1,4 @@
-export default {
+module.exports = {
   monster: {
     attributes: {
       1: 'Water',
@@ -2082,7 +2082,6 @@ export default {
   },
   getRuneEffect(eff) {
     const type = eff[0];
-    // const value = Number(eff[1]) + (Number(eff[3]) || 0);
     const value = eff[1];
 
 

@@ -1,18 +1,17 @@
 {
-  "name": "rune-grade",
+  "name": "rune-grader",
   "version": "1.0.0",
-  "description": "",
+  "description": "Runes evaluator for Summoners War",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node index.js"
+    "start": "node index.js",
+    "build": "nexe -r constants.js -r ./utils/**/* --build"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "module",
+  "author": "Marcelo Cristiano Araujo Silva",
+  "license": "MIT",
   "dependencies": {
-    "exceljs": "^4.2.1",
-    "xlsx": "^0.16.9"
+    "exceljs": "^4.2.1"
   }
 }

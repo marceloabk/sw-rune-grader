@@ -1,14 +1,15 @@
-import ExcelJS from "exceljs"
+const ExcelJS = require("exceljs")
+const {
+  convertSubArrayToProperties
+} = require('./runeUtils')
 
-export const runesToXLSX = async (runes) => {
-  parseSub(runes)
+const runesToXLSX = async (runes) => {
+  convertSubArrayToProperties(runes)
+
   const workbook = new ExcelJS.Workbook({
     creator: 'Marcelo Cristiano Araujo Silva'
   })
-
   const sheet = workbook.addWorksheet('runes', sheetProperties)
-
-
   sheet.columns = columnsConfig
   sheet.addTable({
     name: 'MyTable',
@@ -19,69 +20,35 @@ export const runesToXLSX = async (runes) => {
       showRowStripes: true,
     },
     columns: tableConfig,
-    rows: runes.reduce((acc, rune) => {
-      const finalArray = new Array(19).fill('')
-      Object.entries(rune).forEach(([key, value]) => {
-        const index = columnsConfig.findIndex(({
-          key: columnKey
-        }) => key === columnKey)
-        finalArray[index] = value
-      })
-      acc.push(finalArray)
-      return acc
-    }, []),
+    rows: createTableRows(runes),
   })
 
   workbook.xlsx.writeFile('runes.xlsx')
 }
 
-const parseSub = (runes) => {
-  runes.forEach(rune => {
-    rune.subs.forEach(status => {
-      const number = Number(status.match(/\d+/)[0])
-      const string = status.match(/.+?(?=\d)/)[0].trim()
-      switch (string) {
-        case 'HP +':
-          rune['hp +'] = number
-          break
-        case 'ATK +':
-          rune['atk +'] = number
-          break
-        case 'DEF +':
-          rune['def +'] = number
-          break
-        case 'HP':
-          rune['hp %'] = number
-          break
-        case 'ATK':
-          rune['atk %'] = number
-          break
-        case 'DEF':
-          rune['def %'] = number
-          break
-        case 'CRI Dmg':
-          rune['crt dmg'] = number
-          break
-        case 'SPD +':
-          rune['spd'] = number
-          break
-        case 'CRI Rate':
-          rune['crt rate'] = number
-          break
-        case 'Resistance':
-          rune['res'] = number
-          break
-        case 'Accuracy':
-          rune['acc'] = number
-          break
-        default:
-          console.log('não achei esse status', string)
-      }
-    })
-    delete rune.subs
+const createTableRows = runes =>
+  runes.reduce((rows, rune) => rows.concat([runeToRow(rune)]), [])
+
+// each row is represented by an array with 19 columns 
+const runeToRow = rune => {
+  const finalArray = new Array(19).fill('')
+  Object.entries(rune).forEach(([key, value]) => {
+    const index = findColumnIndexForKey(key)
+    finalArray[index] = value
   })
+  return finalArray
 }
 
+const findColumnIndexForKey = key =>
+  columnsConfig.findIndex(({
+    key: columnKey
+  }) => key === columnKey)
+
+module.exports = {
+  runesToXLSX
+}
+
+// table properties
 
 const sheetProperties = {
   properties: {
@@ -93,19 +60,15 @@ const sheetProperties = {
 }
 
 const columnsConfig = [{
-    header: 'Where',
     key: 'mob',
     width: 15
   }, {
-    header: 'Set',
     key: 'set'
   },
   {
-    header: 'Quality',
     key: 'quality'
   },
   {
-    header: 'Slot',
     key: 'slot',
     style: {
       alignment: {
@@ -114,7 +77,6 @@ const columnsConfig = [{
     }
   },
   {
-    header: 'Grade',
     key: 'grade',
     style: {
       alignment: {
@@ -123,60 +85,46 @@ const columnsConfig = [{
     }
   },
   {
-    header: 'Main',
     key: 'main',
   },
   {
-    header: 'Inat',
-    key: 'inat',
+    key: 'innate',
     width: 15
   },
   {
-    header: 'Score',
     key: 'score'
   },
   {
-    header: 'spd',
     key: 'spd'
   },
   {
-    header: 'crt rate',
     key: 'crt rate'
   },
   {
-    header: 'crt dmg',
     key: 'crt dmg'
   },
   {
-    header: 'atk %',
     key: 'atk %'
   },
   {
-    header: 'def %',
     key: 'def %'
   },
   {
-    header: 'hp %',
     key: 'hp %'
   },
   {
-    header: 'acc',
     key: 'acc'
   },
   {
-    header: 'res',
     key: 'res'
   },
   {
-    header: 'atk +',
     key: 'atk +'
   },
   {
-    header: 'def +',
     key: 'def +'
   },
   {
-    header: 'hp +',
     key: 'hp +'
   },
 ]
@@ -206,7 +154,7 @@ const tableConfig = [{
     filterButton: true,
   },
   {
-    name: 'Inat',
+    name: 'Innate',
     filterButton: true,
   },
   {

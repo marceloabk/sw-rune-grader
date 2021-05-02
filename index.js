@@ -1,98 +1,90 @@
-import mapping from './utils/mapping.js'
-import {
+const mapping = require('./utils/mapping')
+const {
   readFile
-} from 'fs/promises'
-import {
-  getResistanceMultiplier
-} from './utils/runeUtils.js'
-import {
+} = require('fs/promises')
+const {
+  getResistanceMultiplier,
+  getRuneSubs,
+  addInnateToSubs
+} = require('./utils/runeUtils')
+const {
   runesToXLSX
-} from './utils/xlsx.js'
+} = require('./utils/xlsx')
 
 
-const main = async () => {
-  const file = await readFile('./invetory.json')
+const runeGrader = async () => {
+  const file = await readFile('./sw.json')
   const {
-    runes,
+    runes: inventoryRunes,
     unit_list: unitList
   } = JSON.parse(file)
 
-  const unitListRunes = getUnitListRunes(unitList)
-  const parsedRunes = parseRunes([...runes, ...unitListRunes], unitList)
+  const runesOfMobs = getRunesFromMobs(unitList)
+  const parsedRunes = parseRunes([...inventoryRunes, ...runesOfMobs])
   runesToXLSX(parsedRunes)
 }
 
-const parseRunes = (runes, unitList) => runes.map(rune => {
-  const subs = rune.sec_eff.map(eff =>
-    mapping.getRuneEffect(eff)
-  )
+const parseRunes = runes =>
+  runes.map(rune => {
+    const subs = getRuneSubs(rune)
+    const innate = mapping.getRuneEffect(rune.prefix_eff)
 
-  const inat = mapping.getRuneEffect(rune.prefix_eff)
-  let subsWithInat = subs.slice()
-  if (inat !== '')
-    subsWithInat.push(inat)
+    return {
+      set: mapping.rune.sets[rune.set_id],
+      quality: mapping.rune.quality[rune.rank],
+      slot: rune.slot_no,
+      grade: `+${rune.upgrade_curr}`,
+      main: mapping.getRuneEffect(rune.pri_eff),
+      innate,
+      subs,
+      mob: rune.mob || "inventory",
+      score: getRuneScore(subs, innate)
+    }
+  })
 
-  return {
-    set: mapping.rune.sets[rune.set_id],
-    quality: mapping.rune.quality[rune.rank],
-    slot: rune.slot_no,
-    grade: `+${rune.upgrade_curr}`,
-    main: mapping.getRuneEffect(rune.pri_eff),
-    inat,
-    subs,
-    mob: getMobFromRune(rune, unitList),
-    score: gradeRune(subsWithInat).toFixed(2)
-  }
-})
-
-const getMobFromRune = (rune, unitList) => {
-  let mob
-  if (rune.occupied_id === 0) {
-    mob = 'inventory'
-  } else {
-    const unit = unitList.find(({
-      unit_id: unitId
-    }) => unitId === rune.occupied_id)
-
-    mob = mapping.monster.names[unit.unit_master_id]
-  }
-  return mob
-}
-
-const getUnitListRunes = (unitList) =>
+const getRunesFromMobs = (unitList) =>
   unitList.reduce((runes, unit) => {
-    return runes.concat(unit.runes)
+    const mobName = mapping.getMonsterName(unit.unit_master_id)
+    const runesWithMobName = unit.runes.map(rune => {
+      rune.mob = mobName
+      return rune
+    })
+    return runes.concat(runesWithMobName)
   }, [])
 
-const gradeRune = (subs) =>
-  subs.reduce((acc, status) => {
-    const number = Number(status.match(/\d+/)[0])
-    const string = status.match(/.+?(?=\d)/)[0].trim()
-    switch (string) {
+const getRuneScore = (subs, innate) => {
+  const subsWithInnate = addInnateToSubs(subs, innate)
+
+  const score = subsWithInnate.reduce((acc, status) => {
+    const numberPart = Number(status.match(/\d+/)[0])
+    const stringPart = status.match(/.+?(?=\d)/)[0].trim()
+    switch (stringPart) {
       case 'HP +':
-        return acc + (number / 10000) * 100
+        return acc + (numberPart / 10000) * 100
       case 'ATK +':
-        return acc + (number / 750) * 100
+        return acc + (numberPart / 750) * 100
       case 'DEF +':
-        return acc + (number / 600) * 100
+        return acc + (numberPart / 600) * 100
       case 'HP':
       case 'ATK':
       case 'DEF':
       case 'CRI Dmg':
-        return acc + (number)
+        return acc + (numberPart)
       case 'SPD +':
-        return acc + (number * 2)
+        return acc + (numberPart * 2)
       case 'CRI Rate':
-        return acc + (number * 1.5)
+        return acc + (numberPart * 1.5)
       case 'Resistance':
-        return acc + (number * getResistanceMultiplier(number))
+        return acc + (numberPart * getResistanceMultiplier(numberPart))
       case 'Accuracy':
-        return acc + (number * 0.75)
+        return acc + (numberPart * 0.75)
       default:
-        console.log('não achei esse status', string)
+        console.error('status not found', stringPart)
         return acc
     }
   }, 0)
 
+  return score.toFixed(2)
+}
 
-main()
+runeGrader()
